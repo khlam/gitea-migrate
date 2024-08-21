@@ -1,9 +1,9 @@
 import requests
-import json
+import os
 
-GITHUB_USERNAME = "your_github_username"
-GITHUB_TOKEN = "your_github_token"
-OUTPUT_FILE = "repos.json"
+GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+OUTPUT_FILE = "./all_repos.txt"
 
 def fetch_repositories():
     repos = []
@@ -19,11 +19,14 @@ def fetch_repositories():
         if not data:
             break
 
-        repos.extend(data)
+        for repo in data:
+            repos.append(repo['clone_url'])
+
         page += 1
 
     with open(OUTPUT_FILE, "w") as f:
-        json.dump(repos, f, indent=4)
+        for repo in repos:
+            f.write(repo + "\n")
     print(f"Fetched {len(repos)} repositories.")
 
 if __name__ == "__main__":

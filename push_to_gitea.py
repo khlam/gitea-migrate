@@ -1,12 +1,11 @@
 import requests
 import subprocess
-import json
 import os
 
-GITEA_URL = "https://gitea.yourdomain.com"
-GITEA_TOKEN = "your_gitea_token"
-GITEA_USER = "your_gitea_username"
-REPO_FILE = "repos.json"
+GITEA_URL = os.getenv('GITEA_URL')
+GITEA_TOKEN = os.getenv('GITEA_TOKEN')
+GITEA_USER = os.getenv('GITEA_USER')
+REPO_FILE = "./all_repos.txt"
 
 def create_gitea_repo(repo_name):
     url = f"{GITEA_URL}/api/v1/user/repos"
@@ -20,7 +19,8 @@ def create_gitea_repo(repo_name):
     else:
         print(f"Failed to create repository {repo_name} on Gitea: {response.status_code}")
 
-def mirror_repo(repo_clone_url, repo_name):
+def mirror_repo(repo_clone_url):
+    repo_name = repo_clone_url.split('/')[-1].replace('.git', '')
     subprocess.run(["git", "clone", "--mirror", repo_clone_url])
     os.chdir(f"{repo_name}.git")
     gitea_repo_url = f"{GITEA_URL}/{GITEA_USER}/{repo_name}.git"
@@ -31,14 +31,15 @@ def mirror_repo(repo_clone_url, repo_name):
     print(f"Repository {repo_name} mirrored successfully.")
 
 def main():
+    if not os.path.exists(REPO_FILE):
+        print(f"Repository file {REPO_FILE} not found!")
+        return
+
     with open(REPO_FILE, "r") as f:
-        repos = json.load(f)
+        repos = f.read().splitlines()
 
     for repo in repos:
-        repo_name = repo["name"]
-        repo_clone_url = repo["clone_url"]
-        create_gitea_repo(repo_name)
-        mirror_repo(repo_clone_url, repo_name)
+        mirror_repo(repo)
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  fetch-repos:
+    build:
+      context: .
+      target: fetch_stage
+    environment:
+      - GITHUB_USERNAME=${GITHUB_USERNAME}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+
+  push-to-gitea:
+    build:
+      context: .
+      target: push_stage
+    environment:
+      - GITEA_URL=${GITEA_URL}
+      - GITEA_TOKEN=${GITEA_TOKEN}
+      - GITEA_USER=${GITEA_USER}
