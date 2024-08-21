@@ -8,6 +8,8 @@ services:
     environment:
       - GITHUB_USERNAME=${GITHUB_USERNAME}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - ./all_repos.txt:/app/all_repos.txt
 
   push-to-gitea:
     build:
@@ -17,6 +19,8 @@ services:
       - GITEA_URL=${GITEA_URL}
       - GITEA_TOKEN=${GITEA_TOKEN}
       - GITEA_USER=${GITEA_USER}
+      - GITEA_ORG=${GITEA_ORG}
       - GITHUB_USERNAME=${GITHUB_USERNAME}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
-    
+    volumes:
+      - ./all_repos.txt:/app/all_repos.txt

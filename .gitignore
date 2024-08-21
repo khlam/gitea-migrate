@@ -1,3 +1,4 @@
+all_repos.txt
 *.env
 wandb/
 
