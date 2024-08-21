@@ -1,74 +1,64 @@
-import requests
-import subprocess
 import os
-import time
+import subprocess
+import requests
 
+# Load environment variables
 GITEA_URL = os.getenv('GITEA_URL')
 GITEA_TOKEN = os.getenv('GITEA_TOKEN')
-GITEA_USER = os.getenv('GITEA_USER')
+GITEA_USER = os.getenv('GITEA_USER')  # This can be retained for other purposes if needed
+GITEA_ORG = os.getenv('GITEA_ORG')    # New variable for the Gitea organization
 GITHUB_USERNAME = os.getenv('GITHUB_USERNAME')
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 REPO_FILE = "./all_repos.txt"
 
-def gitea_repo_exists(repo_name):
-    url = f"{GITEA_URL}/api/v1/repos/{GITEA_USER}/{repo_name}"
-    headers = {"Authorization": f"token {GITEA_TOKEN}"}
-    response = requests.get(url, headers=headers)
-    return response.status_code == 200
+# Ensure the clone directory exists
+clone_dir = "/tmp/cloned_repos"
+os.makedirs(clone_dir, exist_ok=True)
 
 def create_gitea_repo(repo_name):
-    if gitea_repo_exists(repo_name):
-        print(f"Repository {repo_name} already exists on Gitea.")
-        return False
+    url = f"{GITEA_URL}/api/v1/orgs/{GITEA_ORG}/repos"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"token {GITEA_TOKEN}"
+    }
+    data = {
+        "name": repo_name,
+        "private": True,  # Change this to True if you want private repos
+        "auto_init": False  # We don't want to initialize the repo, we'll push existing content
+    }
     
-    url = f"{GITEA_URL}/api/v1/user/repos"
-    headers = {"Authorization": f"token {GITEA_TOKEN}", "Content-Type": "application/json"}
-    data = {"name": repo_name, "private": True}
     response = requests.post(url, headers=headers, json=data)
-    
-    # Add a delay after Gitea interaction to be safe
-    time.sleep(1)
-    
     if response.status_code == 201:
-        print(f"Repository {repo_name} created successfully on Gitea.")
-        return True
+        print(f"Repository '{repo_name}' created successfully in organization '{GITEA_ORG}'.")
     else:
-        print(f"Failed to create repository {repo_name} on Gitea: {response.status_code}")
-        return False
+        print(f"Failed to create repository '{repo_name}' in organization '{GITEA_ORG}'. Status code: {response.status_code}, Response: {response.text}")
+        raise Exception(f"Failed to create repository '{repo_name}'")
 
-def mirror_repo(repo_clone_url):
-    repo_name = repo_clone_url.split('/')[-1].replace('.git', '')
-
-    if not create_gitea_repo(repo_name):
-        return
-
-    # Prepare the authenticated URL for cloning private repos
-    if 'github.com' in repo_clone_url:
-        repo_clone_url = repo_clone_url.replace('https://', f'https://{GITHUB_USERNAME}:{GITHUB_TOKEN}@')
-
-    subprocess.run(["git", "clone", "--mirror", repo_clone_url])
+def mirror_repo(repo_url):
+    repo_name = repo_url.split("/")[-1].replace(".git", "")
+    local_repo_path = os.path.join(clone_dir, repo_name)
     
-    # Add a delay between GitHub interactions
-    time.sleep(1)
+    # Clone the repository with all branches and tags using GitHub credentials
+    authenticated_repo_url = repo_url.replace("https://", f"https://{GITHUB_USERNAME}:{GITHUB_TOKEN}@")
+    subprocess.run(["git", "clone", "--mirror", authenticated_repo_url, local_repo_path], check=True)
     
-    os.chdir(f"{repo_name}.git")
-    gitea_repo_url = f"{GITEA_URL}/{GITEA_USER}/{repo_name}.git"
-    subprocess.run(["git", "remote", "add", "gitea", gitea_repo_url])
-    subprocess.run(["git", "push", "--mirror", "gitea"])
-    os.chdir("..")
-    subprocess.run(["rm", "-rf", f"{repo_name}.git"])
-    print(f"Repository {repo_name} mirrored successfully.")
+    # Create the repository in the Gitea organization
+    create_gitea_repo(repo_name)
+    
+    # Push all branches and tags to Gitea
+    gitea_repo_url = f"{GITEA_URL}/{GITEA_ORG}/{repo_name}.git"
+    subprocess.run(["git", "-C", local_repo_path, "push", "--mirror", gitea_repo_url], check=True)
 
 def main():
-    if not os.path.exists(REPO_FILE):
-        print(f"Repository file {REPO_FILE} not found!")
-        return
-
     with open(REPO_FILE, "r") as f:
-        repos = f.read().splitlines()
+        repos = f.readlines()
 
     for repo in repos:
-        mirror_repo(repo)
+        repo = repo.strip()
+        if repo:
+            print(f"Mirroring repository: {repo}")
+            mirror_repo(repo)
+            print(f"Finished mirroring repository: {repo}")
 
 if __name__ == "__main__":
     main()

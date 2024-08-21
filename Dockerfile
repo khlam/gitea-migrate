@@ -3,6 +3,9 @@ FROM python:3.10-slim AS base
 
 WORKDIR /app
 
+# Install Git
+RUN apt-get update && apt-get install -y git && apt-get clean
+
 # Copy the requirements file and install dependencies
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
